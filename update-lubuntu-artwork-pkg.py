@@ -45,7 +45,7 @@ with ftplib.FTP('archive.ubuntu.com') as ubuntu_ftp:
     os.chdir(lubuntu_artwork_src)
     try:
         subprocess.check_call(['git', 'commit', 'PKGBUILD', '-m',
-            'Update pkg ({})'.format(pkgver)])
+            '[lubuntu-artwork] Update pkg ({})'.format(pkgver)])
     except subprocess.CalledProcessError:
         pass
     else:
