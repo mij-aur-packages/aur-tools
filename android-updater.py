@@ -22,7 +22,7 @@ def open_url_using_url_pattern(url_pattern, num_max=None, delim='-'):
                     raise e
     return urllib.request.urlopen(url_pattern.format(delim='', num=''))
 
-def get_addon_urls(num_max=2):
+def get_addon_urls(num_max=3):
     android_addons_list_xml_url_pattern = (
             'https://dl-ssl.google.com/android/repository/addons_list{delim}{num}.xml')
     addons_list_file_obj = open_url_using_url_pattern(android_addons_list_xml_url_pattern,
@@ -60,7 +60,7 @@ def get_packages(package_list_url_file_objs):
             packages.setdefault(key, set()).add(node)
     return packages
 
-def open_repository_xml_url(num_max=9):
+def open_repository_xml_url(num_max=12):
     android_repository_xml_url_pattern = (
             'https://dl-ssl.google.com/android/repository/repository{delim}{num}.xml')
     return open_url_using_url_pattern(
