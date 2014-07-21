@@ -133,7 +133,7 @@ def update_pkgbuild(src_path, package_node):
 
     archives = package_node.find(namespace_format(namespace, 'archives'))
     for archive in archives:
-        if archive.attrib['os'] == 'any':
+        if archive.attrib.get('os', 'any') in ('any', 'linux'):
             break
     else:
         return
