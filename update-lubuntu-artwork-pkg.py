@@ -14,21 +14,22 @@ def vercmp(ver1, ver2):
 
 pkgbuild_dir = sys.argv[1]
 
-with ftplib.FTP('archive.ubuntu.com') as ubuntu_ftp:
-    ubuntu_ftp.login()
-    ubuntu_ftp.cwd('ubuntu/pool/universe/l/lubuntu-artwork')
-    dsc_list = []
-    for i in ubuntu_ftp.nlst():
-        if i.endswith('.dsc'):
-            dsc_list.append(i)
+def main():
+    with ftplib.FTP('archive.ubuntu.com') as ubuntu_ftp:
+        ubuntu_ftp.login()
+        ubuntu_ftp.cwd('ubuntu/pool/universe/l/lubuntu-artwork')
+        dsc_list = []
+        for i in ubuntu_ftp.nlst():
+            if i.endswith('.dsc'):
+                dsc_list.append(i)
 
-    dsc_list = list(sorted(dsc_list, key=functools.cmp_to_key(vercmp)))
-    dsc_name = dsc_list[-1]
+        dsc_list = list(sorted(dsc_list, key=functools.cmp_to_key(vercmp)))
+        dsc_name = dsc_list[-1]
 
-    with io.BytesIO() as dsc_io:
-        dsc_io = io.BytesIO()
-        ubuntu_ftp.retrbinary('RETR {}'.format(dsc_name), dsc_io.write)
-        dsc_content = dsc_io.getvalue().decode('utf8')
+        with io.BytesIO() as dsc_io:
+            dsc_io = io.BytesIO()
+            ubuntu_ftp.retrbinary('RETR {}'.format(dsc_name), dsc_io.write)
+            dsc_content = dsc_io.getvalue().decode('utf8')
 
     debian_version = re.search(r'{}\s+([^\s]+)'.format('Version:'),
         dsc_content).group(1)
@@ -46,7 +47,7 @@ with ftplib.FTP('archive.ubuntu.com') as ubuntu_ftp:
             pkgbuild_content).group(1)
     vercmp_res = vercmp(old_pkgver, pkgver)
     if vercmp_res == 0:
-        sys.exit(0)
+        return
     elif vercmp_res > 0:
         raise Exception('PKGBUILD version is higher than the upstream package')
 
@@ -68,3 +69,7 @@ with ftplib.FTP('archive.ubuntu.com') as ubuntu_ftp:
         pass
     else:
         subprocess.check_call('git push'.split())
+
+
+if __name__ == '__main__':
+    main()
