@@ -3,10 +3,14 @@ import ftplib
 import functools
 import io
 import os
-import pyalpm
 import re
 import subprocess
 import sys
+
+
+def vercmp(ver1, ver2):
+    vercmp_res = subprocess.check_output(['vercmp', ver1, ver2]).decode('utf-8')
+    return int(vercmp_res)
 
 pkgbuild_dir = sys.argv[1]
 
@@ -18,7 +22,7 @@ with ftplib.FTP('archive.ubuntu.com') as ubuntu_ftp:
         if i.endswith('.dsc'):
             dsc_list.append(i)
 
-    dsc_list = list(sorted(dsc_list, key=functools.cmp_to_key(pyalpm.vercmp)))
+    dsc_list = list(sorted(dsc_list, key=functools.cmp_to_key(vercmp)))
     dsc_name = dsc_list[-1]
 
     with io.BytesIO() as dsc_io:
