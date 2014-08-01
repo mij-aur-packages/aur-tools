@@ -8,7 +8,7 @@ import re
 import subprocess
 import sys
 
-lubuntu_artwork_src = sys.argv[1]
+pkgbuild_dir = sys.argv[1]
 
 with ftplib.FTP('archive.ubuntu.com') as ubuntu_ftp:
     ubuntu_ftp.login()
@@ -34,7 +34,7 @@ with ftplib.FTP('archive.ubuntu.com') as ubuntu_ftp:
     pat = re.compile(r'([^\s]+)\s+([^\s]+)\s+{}'.format(re.escape(package_name)))
     sha256sum = pat.search(dsc_content, start_pos).group(1)
 
-    pkgbuild_path = os.path.join(lubuntu_artwork_src, 'PKGBUILD')
+    pkgbuild_path = os.path.join(pkgbuild_dir, 'PKGBUILD')
     with open(pkgbuild_path, 'r') as pkgbuild:
         pkgbuild_content = pkgbuild.read()
         pkgbuild_content = re.sub(r'(?<=pkgver\=)[^\n]+', pkgver,
@@ -46,7 +46,7 @@ with ftplib.FTP('archive.ubuntu.com') as ubuntu_ftp:
     with open(pkgbuild_path, 'w') as pkgbuild:
         pkgbuild.write(pkgbuild_content)
     cwd = os.getcwd()
-    os.chdir(lubuntu_artwork_src)
+    os.chdir(pkgbuild_dir)
     try:
         subprocess.check_call(['git', 'commit', 'PKGBUILD', '-m',
             '[lubuntu-artwork] Update pkg ({})'.format(pkgver)])
