@@ -26,9 +26,13 @@ with ftplib.FTP('archive.ubuntu.com') as ubuntu_ftp:
         ubuntu_ftp.retrbinary('RETR {}'.format(dsc_name), dsc_io.write)
         dsc_content = dsc_io.getvalue().decode('utf8')
 
-    sha256sum = re.search(r'Checksums-Sha256:\s+([^\s]+)',
-            dsc_content, re.MULTILINE).groups()[0]
-    pkgver = dsc_name.rsplit('.', 1)[0].rsplit('_', 1)[1]
+    debian_version = re.search(r'{}\s+([^\s]+)'.format('Version:'),
+        dsc_content).group(1)
+    pkgver = debian_version.rsplit('-', 1)[0]
+    package_name = 'lubuntu-artwork_{}.'.format(pkgver)
+    start_pos = re.search(re.escape('Checksums-Sha256:'), dsc_content).span()[1]
+    pat = re.compile(r'([^\s]+)\s+([^\s]+)\s+{}'.format(re.escape(package_name)))
+    sha256sum = pat.search(dsc_content, start_pos).group(1)
 
     pkgbuild_path = os.path.join(lubuntu_artwork_src, 'PKGBUILD')
     with open(pkgbuild_path, 'r') as pkgbuild:
