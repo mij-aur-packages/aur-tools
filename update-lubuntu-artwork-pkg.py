@@ -5,16 +5,14 @@ import io
 import os
 import re
 import subprocess
-import sys
 
 
 def vercmp(ver1, ver2):
     vercmp_res = subprocess.check_output(['vercmp', ver1, ver2]).decode('utf-8')
     return int(vercmp_res)
 
-pkgbuild_dir = sys.argv[1]
 
-def main():
+def main(pkgbuild_dir):
     with ftplib.FTP('archive.ubuntu.com') as ubuntu_ftp:
         ubuntu_ftp.login()
         ubuntu_ftp.cwd('ubuntu/pool/universe/l/lubuntu-artwork')
@@ -72,4 +70,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    import sys
+    main(sys.argv[1])
