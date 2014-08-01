@@ -58,6 +58,7 @@ def main(pkgbuild_dir):
 
     with open(pkgbuild_path, 'w') as pkgbuild:
         pkgbuild.write(pkgbuild_content)
+
     cwd = os.getcwd()
     os.chdir(pkgbuild_dir)
     try:
@@ -67,6 +68,7 @@ def main(pkgbuild_dir):
         pass
     else:
         subprocess.check_call('git push'.split())
+    os.chdir(cwd)
 
 
 if __name__ == '__main__':
