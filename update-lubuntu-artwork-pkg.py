@@ -41,12 +41,22 @@ with ftplib.FTP('archive.ubuntu.com') as ubuntu_ftp:
     pkgbuild_path = os.path.join(pkgbuild_dir, 'PKGBUILD')
     with open(pkgbuild_path, 'r') as pkgbuild:
         pkgbuild_content = pkgbuild.read()
-        pkgbuild_content = re.sub(r'(?<=pkgver\=)[^\n]+', pkgver,
-                pkgbuild_content, flags=re.MULTILINE)
-        pkgbuild_content = re.sub(r'(?<=pkgrel\=)[^\n]+', '1',
-                pkgbuild_content, flags=re.MULTILINE)
-        pkgbuild_content = re.sub(r'(?<=sha256sums\=\(\')[^\']+', sha256sum,
-                pkgbuild_content, flags=re.MULTILINE)
+
+    old_pkgver = re.search(r'(?:(?<=pkgver\=)\s*)([^\s]+)',
+            pkgbuild_content).group(1)
+    vercmp_res = vercmp(old_pkgver, pkgver)
+    if vercmp_res == 0:
+        sys.exit(0)
+    elif vercmp_res > 0:
+        raise Exception('PKGBUILD version is higher than the upstream package')
+
+    pkgbuild_content = re.sub(r'(?<=pkgver\=)[^\n]+', pkgver,
+            pkgbuild_content, flags=re.MULTILINE)
+    pkgbuild_content = re.sub(r'(?<=pkgrel\=)[^\n]+', '1',
+            pkgbuild_content, flags=re.MULTILINE)
+    pkgbuild_content = re.sub(r'(?<=sha256sums\=\(\')[^\']+', sha256sum,
+            pkgbuild_content, flags=re.MULTILINE)
+
     with open(pkgbuild_path, 'w') as pkgbuild:
         pkgbuild.write(pkgbuild_content)
     cwd = os.getcwd()
