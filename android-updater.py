@@ -243,7 +243,7 @@ def extract_ordinary_var_pattern(bash_script, varname):
     patt = re.sub(regex_pattern, r'\1\g<quote>{}\g<quote>', patt, re.MULTILINE)
     return orig, patt
 
-def update_pkgbuild(src_path, item):
+def update_package(src_path, item):
     try:
         api_level = item.api_level
         rev = 'r{:0>2}'.format(int(item.revision))
@@ -363,7 +363,7 @@ def main(argv):
 
     for package_name, item in latest_packages.items():
         try:
-            update_pkgbuild(os.path.join(directory,
+            update_package(os.path.join(directory,
                 to_aur_package_name(package_name)), item)
         except FileNotFoundError:
             pass
