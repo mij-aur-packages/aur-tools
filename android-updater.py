@@ -288,10 +288,10 @@ def update_package(src_path, item):
         try:
             pkg_apilevel, patt = extract_ordinary_var_pattern(pkgbuild_content,
                 '_apilevel')
+            new_pkg_apilevel = patt.format(api_level)
         except NameError:
             pass
         else:
-            new_pkg_apilevel = patt.format(api_level)
             pkgbuild_content = pkgbuild_content.replace(pkg_apilevel, new_pkg_apilevel)
             already_updated = (already_updated
                     and pkg_apilevel == new_pkg_apilevel)
