@@ -109,7 +109,7 @@ def normalize_xmldict(xmldict):
 
 def android_arch(arch):
     if arch == 'armeabi-v7a':
-        return 'armv7-eabi'
+        return 'armv7a-eabi'
     return arch
 
 
