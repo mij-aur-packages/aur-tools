@@ -356,12 +356,15 @@ def main(argv):
     android_items = get_android_items(package_list_open_urls)
     android_items = [item for item in android_items
             if item.package_type != 'extra' and 'obsolete' not in item]
-    items_by_package_name = itertools.groupby(android_items,
-            get_android_package_name)
+    items_by_package_name = {}
+    for item in android_items:
+        android_pkg_name = get_android_package_name(item)
+        items_by_package_name.setdefault(android_pkg_name, [])
+        items_by_package_name[android_pkg_name].append(item)
 
     latest_packages = {package_name: list(sorted(items,
         key=get_android_version, reverse=True))[0]
-        for package_name, items in items_by_package_name}
+        for package_name, items in items_by_package_name.items()}
 
     for package_name, item in latest_packages.items():
         try:
