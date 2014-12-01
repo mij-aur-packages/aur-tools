@@ -121,6 +121,8 @@ def get_android_package_name(item):
             package_name = '_'.join([item.tag_id, android_arch(item.abi)])
     elif item.package_type == 'add_on':
         package_name = item.name_id
+    elif item.package_type == 'source':
+        package_name = 'sources'
     else:
         package_name = item.package_type
     return package_name.replace('_', '-')
