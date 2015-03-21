@@ -16,7 +16,11 @@ import xmltodict
 def namespace_format(namespace, tag):
     return '{{{namespace}}}{tag}'.format(namespace=namespace, tag=tag)
 
-def open_url_using_url_pattern(url_pattern, num_max=None, delim='-'):
+def get_latest_url(url_pattern, num_max=None, delim='-'):
+    """Return a request object for the latest url available for consumption.
+    The url is constructed by formatting `url_pattern` with `delim` and an
+    index ranging from 1 to `num_max`, inclusive. The latest url is obtained by
+    finding the highest index in which the constructed url successfully return."""
     if num_max is not None:
         for i in range(num_max, 0, -1):
             url_to_be_open = url_pattern.format(delim=delim, num=i)
@@ -27,10 +31,14 @@ def open_url_using_url_pattern(url_pattern, num_max=None, delim='-'):
                     raise e
     return urllib.request.urlopen(url_pattern.format(delim='', num=''))
 
-def get_addon_urls(num_max=3):
+def get_addon_url_paths(num_max=3):
+    """Return a dictionary which maps the addon name to its url from the latest
+    repository. The url for the repository is obtained by the url whose index
+    is the highest and would make a successful request. The index ranges from 1
+    to `num_max`, inclusive"""
     android_addons_list_xml_url_pattern = (
             'https://dl-ssl.google.com/android/repository/addons_list{delim}{num}.xml')
-    addons_list_file_obj = open_url_using_url_pattern(android_addons_list_xml_url_pattern,
+    addons_list_file_obj = get_latest_url(android_addons_list_xml_url_pattern,
         num_max=num_max)
     root = etree.parse(addons_list_file_obj).getroot()
     namespace = re.match(r'\{([^}]+)}', root.tag).group(1)
@@ -44,10 +52,13 @@ def get_addon_urls(num_max=3):
         urls.setdefault(name_node.text, []).append(url)
     return urls
 
-def open_repository_xml_url(num_max=12):
+def get_repository_xml_url(num_max=12):
+    """Return a request object the latest repository. The url for the
+    repository is obtained by the url whose index is the highest and would
+    make a successful request. The index ranges from 1 to `num_max`, inclusive"""
     android_repository_xml_url_pattern = (
             'https://dl-ssl.google.com/android/repository/repository{delim}{num}.xml')
-    return open_url_using_url_pattern(
+    return get_latest_url(
             android_repository_xml_url_pattern, num_max=num_max)
 
 class AttrDict(collections.OrderedDict):
@@ -72,7 +83,10 @@ class AttrDict(collections.OrderedDict):
     def __delattr__(self, name):
         del self[name]
 
-def wrap_to_list(obj, expected_types=None):
+def create_or_return_list(obj, expected_types=None):
+    """Return the object if it is a list. Otherwise, wrap the object in a
+    list. If the `expected_types` is not None, `obj` must be an instance of one
+    of the types in the list in order for the call to succeed."""
     if isinstance(obj, list):
         return obj
     elif expected_types is None or isinstance(obj, expected_types):
@@ -143,14 +157,14 @@ def get_android_items(url_file_objs):
         android_xmldict = xmltodict.parse(android_file_obj.read())
         nodes = next(iter(android_xmldict.values()))
 
-        license_node = wrap_to_list(nodes.pop('sdk:license'))
+        license_node = create_or_return_list(nodes.pop('sdk:license'))
         licenses = {node['@id']: node['#text'] for node in license_node}
 
         for key, value in nodes.items():
             if not key.startswith('sdk:'):
                 continue
             name = key.replace('sdk:', '', 1).replace('-', '_')
-            node_list = wrap_to_list(value)
+            node_list = create_or_return_list(value)
 
             for subnode in node_list:
                 itm = normalize_xmldict(subnode)
@@ -158,7 +172,7 @@ def get_android_items(url_file_objs):
                 itm.package_repo_url = android_file_obj.url
 
                 if len(list(itm.archives.keys())) == 1:
-                    itm.archives = wrap_to_list(itm.archives.archive)
+                    itm.archives = create_or_return_list(itm.archives.archive)
                 else:
                     raise Exception('archives must contain only archive node')
 
@@ -352,8 +366,8 @@ def main(argv):
     directory = argv[1]
 
     package_list_open_urls = [urllib.request.urlopen(i)
-            for i in itertools.chain.from_iterable(get_addon_urls().values())]
-    package_list_open_urls.append(open_repository_xml_url())
+            for i in itertools.chain.from_iterable(get_addon_url_paths().values())]
+    package_list_open_urls.append(get_repository_xml_url())
 
     android_items = get_android_items(package_list_open_urls)
     android_items = [item for item in android_items
