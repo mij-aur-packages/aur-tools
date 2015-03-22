@@ -1,10 +1,8 @@
-#!/usr/bin/env python3
 import collections
 import datetime
 import hashlib
-import io
-import itertools
 import os
+import pkgbuild_lib
 import re
 import subprocess
 import sys
@@ -242,33 +240,27 @@ def to_aur_package_name(name):
         name = 'armv7a-eabi-system-image'
     return '-'.join(['android', name])
 
-def extract_array_var_pattern(bash_script, varname):
-    orig = next(re.finditer(r'{}\=\([^)]+\)'.format(re.escape(varname)),
-        bash_script, re.MULTILINE)).group(0)
-    patt = re.sub(r'([{}])', r'\1\1', orig, re.MULTILINE)
-    patt = re.sub(r'''(["'])((?!\1).)*\1''', r'\1{}\1', patt, re.MULTILINE)
-    return orig, patt
 
-def extract_ordinary_var_pattern(bash_script, varname):
-    regex_pattern = r'''({}\=)(?P<quote>["']?)((?#
-                no quotation
-            )(?<=[^"'])[^\s#]+|(?#
-                with quotation
-            )(?<=["'])((?!(?P=quote)).)*(?P=quote))'''.format(re.escape(varname))
-    orig = next(re.finditer(regex_pattern,
-        bash_script, re.MULTILINE)).group(0)
-    patt = re.sub(r'([{}])', r'\1\1', orig, re.MULTILINE)
-    patt = re.sub(regex_pattern, r'\1\g<quote>{}\g<quote>', patt, re.MULTILINE)
-    return orig, patt
-
-def update_package(src_path, item):
+def get_android_package_pkgver_vars(item):
+    """Returns a dictionary mapping the '_rev' variable with the revision's
+    major, minor and micro value or the revision's value if those are not
+    available, '_apilevel' with the api_level if its available, and the
+    pkgver."""
+    version_variables = {}
     try:
-        api_level = item.api_level
-        rev = 'r{:0>2}'.format(int(item.revision))
-        pkgver = '{}_{}'.format(api_level, rev)
+        version_variables['_apilevel'] = item.api_level
+        version_variables['_rev'] = 'r{:0>2}'.format(int(item.revision))
+        version_variables['pkgver'] = '{}_{}'.format(version_variables['_apilevel'],
+                version_variables['_rev'])
     except AttributeError:
         revision = item.revision
-        rev = '{}.{}.{}'.format(revision.major, revision.minor, revision.micro)
+        version_variables['_rev'] = '{}.{}.{}'.format(revision.major, revision.minor, revision.micro)
+        version_variables['pkgver'] = '{}'.format(version_variables['_rev'])
+    return version_variables
+
+
+def update_package(src_path, item):
+    # Skip package when the host os is not compatible with linux
     for archive in item.archives:
         try:
             host_os = archive['@os']
@@ -281,6 +273,32 @@ def update_package(src_path, item):
         if host_os in ('any', 'linux'):
             break
     else:
+        return
+
+    pkgbuild_path = os.path.join(src_path, 'PKGBUILD')
+    with open(pkgbuild_path, 'r') as pkgbuild:
+        pkgbuild_content = pkgbuild.read()
+
+    pkgname = pkgbuild_lib.get_pkgbuild_value(pkgbuild_content, 'pkgname')
+
+    android_pkgver_vars = get_android_package_pkgver_vars(item)
+    android_pkgver = android_pkgver_vars['pkgver']
+    del android_pkgver_vars['pkgver']
+
+    has_update = False
+    try:
+        pkgbuild_apilevel = pkgbuild_lib.get_pkgbuild_value(pkgbuild_content, '_apilevel')
+        has_update = has_update or pkgbuild_lib.vercmp(pkgbuild_apilevel,
+            android_pkgver_vars['_apilevel']) < 0
+    except ValueError:
+        pass
+
+    pkgbuild_rev = pkgbuild_lib.get_pkgbuild_value(pkgbuild_content, '_rev')
+    has_update = has_update or pkgbuild_lib.vercmp(pkgbuild_rev,
+            android_pkgver_vars['_rev']) < 0
+
+    if not has_update:
+        print('{} already updated'.format(pkgname))
         return
 
     checksum_algo_name, checksum_algo_res = list(archive.checksum.items())[0]
@@ -298,49 +316,25 @@ def update_package(src_path, item):
         source_properties_list.append(source_properties_filename)
         source_properties_hash_list.append(source_properties_hash)
 
-    pkgbuild_path = os.path.join(src_path, 'PKGBUILD')
-    with open(pkgbuild_path, 'r') as pkgbuild:
-        pkgbuild_content = pkgbuild.read()
 
-        already_updated = True
-        try:
-            pkg_apilevel, patt = extract_ordinary_var_pattern(pkgbuild_content,
-                '_apilevel')
-            new_pkg_apilevel = patt.format(api_level)
-        except NameError:
-            pass
-        else:
-            pkgbuild_content = pkgbuild_content.replace(pkg_apilevel, new_pkg_apilevel)
-            already_updated = (already_updated
-                    and pkg_apilevel == new_pkg_apilevel)
+    for varname, value in android_pkgver_vars.items():
+        pkgbuild_content = pkgbuild_lib.replace_pkgbuild_var_value(
+                pkgbuild_content, varname, value)
+    pkgbuild_content = pkgbuild_lib.replace_pkgbuild_var_value(
+            pkgbuild_content, 'pkgrel', '1')
 
-        pkg_rev, patt = extract_ordinary_var_pattern(pkgbuild_content, '_rev')
-        new_pkg_rev = patt.format(rev)
-        pkgbuild_content = pkgbuild_content.replace(pkg_rev, new_pkg_rev)
-        already_updated = already_updated and pkg_rev == new_pkg_rev
+    pkgsource = [urllib.parse.urljoin(item.package_repo_url, archive.url)]
+    pkgsums = [checksum_algo_res]
 
-        pkgname = re.search(r'(?<=pkgname\=)[^\s#]+', pkgbuild_content).group()
+    pkgsource.extend(source_properties_list)
+    pkgsums.extend(source_properties_hash_list)
 
-        if already_updated:
-            print('{} already updated'.format(pkgname))
-            return
-
-        pkgsource = [urllib.parse.urljoin(item.package_repo_url, archive.url)]
-        pkgsums = [checksum_algo_res]
-
-        pkgsource.extend(source_properties_list)
-        pkgsums.extend(source_properties_hash_list)
-
-        pkgbuild_content = re.sub(r'(?<=pkgrel\=)[^\n]+', '1',
-                pkgbuild_content, flags=re.MULTILINE)
-
-        for varname, values in zip(['source',
-            '{}sums'.format(checksum_algo_name)], [pkgsource, pkgsums]):
-            bash_array, array_pattern = extract_array_var_pattern(
-                pkgbuild_content, varname)
-            pkgbuild_content = pkgbuild_content.replace(bash_array,
-                    array_pattern.format(*values))
-
+    for varname, values in zip(['source',
+        '{}sums'.format(checksum_algo_name)], [pkgsource, pkgsums]):
+        bash_array, array_pattern = pkgbuild_lib.extract_array_var_pattern(
+            pkgbuild_content, varname)
+        pkgbuild_content = pkgbuild_content.replace(bash_array,
+                array_pattern.format(*values))
 
     with open(pkgbuild_path, 'w') as pkgbuild:
         pkgbuild.write(pkgbuild_content)
@@ -348,46 +342,5 @@ def update_package(src_path, item):
     if source_properties_list:
         with open(source_properties_path, 'w') as f:
             f.write(source_properties)
-
-    cwd = os.getcwd()
-    os.chdir(src_path)
-    try:
-        git_command = 'git commit'.split()
-        git_command.extend(source_properties_list + ['PKGBUILD'])
-        git_command.extend([
-            '-m','Update pkg ({pkgver})'.format(pkgname=pkgname, pkgver=pkgver)])
-        subprocess.check_call(git_command)
-    except subprocess.CalledProcessError:
-        pass
-    finally:
-        os.chdir(cwd)
-
-def main(argv):
-    directory = argv[1]
-
-    package_list_open_urls = [urllib.request.urlopen(i)
-            for i in itertools.chain.from_iterable(get_addon_url_paths().values())]
-    package_list_open_urls.append(get_repository_xml_url())
-
-    android_items = get_android_items(package_list_open_urls)
-    android_items = [item for item in android_items
-            if item.package_type != 'extra' and 'obsolete' not in item]
-    items_by_package_name = {}
-    for item in android_items:
-        android_pkg_name = get_android_package_name(item)
-        items_by_package_name.setdefault(android_pkg_name, [])
-        items_by_package_name[android_pkg_name].append(item)
-
-    latest_packages = {package_name: list(sorted(items,
-        key=get_android_version, reverse=True))[0]
-        for package_name, items in items_by_package_name.items()}
-
-    for package_name, item in latest_packages.items():
-        try:
-            update_package(os.path.join(directory,
-                to_aur_package_name(package_name)), item)
-        except FileNotFoundError:
-            pass
-
-if __name__ == '__main__':
-    main(sys.argv)
+    pkgbuild_lib.commit_pkgbuild(
+            src_path, pkgname, android_pkgver, source_properties_list)
