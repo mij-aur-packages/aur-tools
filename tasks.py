@@ -8,6 +8,7 @@ import itertools
 import os
 import pkgbuild_lib
 import urllib
+import pypi_lib
 
 
 DEFAULT_PKGBUILD_SRC_PARENT_PATH = os.path.join(
@@ -81,11 +82,25 @@ def update_packages_that_have_dsc(ctx,
         dsc_lib.update_package_with_dsc(src_path, url, pkg_src_name_pattern)
 
 
-@ctask(pre=[update_android_packages, update_packages_that_have_dsc])
+@ctask
+def update_pypi_packages(ctx,
+        src_parent=DEFAULT_PKGBUILD_SRC_PARENT_PATH):
+    pkgbuild_dirs = []
+    for i in []:
+        pkgbuild_dirs.append(os.path.join(src_parent, i))
+
+    for src_path in pkgbuild_dirs:
+        pypi_lib.update_package_with_pypi(src_path)
+
+
+@ctask(pre=[update_android_packages,
+    update_packages_that_have_dsc,
+    update_pypi_packages])
 def update_packages(ctx):
     print("Finish updating packages")
 
 ns = Collection()
 ns.add_task(update_android_packages)
 ns.add_task(update_packages_that_have_dsc)
+ns.add_task(update_pypi_packages)
 ns.add_task(update_packages, default=True)
