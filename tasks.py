@@ -86,7 +86,7 @@ def update_packages_that_have_dsc(ctx,
 def update_pypi_packages(ctx,
         src_parent=DEFAULT_PKGBUILD_SRC_PARENT_PATH):
     pkgbuild_dirs = []
-    for i in []:
+    for i in ['pyhamcrest']:
         pkgbuild_dirs.append(os.path.join(src_parent, i))
 
     for src_path in pkgbuild_dirs:
