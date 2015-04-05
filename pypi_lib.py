@@ -30,11 +30,11 @@ def update_package_with_pypi(pkgbuild_dir):
     new_pkgver = pypi_pkg['info']['version']
     pkgver = pkgbuild_lib.get_pkgbuild_value(pkgbuild_content, 'pkgver')
     vercmp_res = pkgbuild_lib.vercmp(pkgver, new_pkgver)
+    pkgname = pkgbuild_lib.get_pkgbuild_value(pkgbuild_content, 'pkgname')
     if vercmp_res >= 0:
         print('{} already updated'.format(pkgname))
         return
 
-    pkgname = pkgbuild_lib.get_pkgbuild_value(pkgbuild_content, 'pkgname')
     pkgbuild_content = pkgbuild_lib.replace_pkgbuild_var_value(
             pkgbuild_content, 'pkgver', new_pkgver)
     pkgbuild_content = pkgbuild_lib.replace_pkgbuild_var_value(
