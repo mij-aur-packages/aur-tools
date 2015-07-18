@@ -35,7 +35,8 @@ def get_latest_lubuntu_artwork_dsc():
 
 @ctask
 def update_android_packages(ctx,
-        android_pkgbuild_src_parent=DEFAULT_PKGBUILD_SRC_PARENT_PATH):
+        android_pkgbuild_src_parent=DEFAULT_PKGBUILD_SRC_PARENT_PATH,
+        exclude_codename=None):
 
     package_list_open_urls = [urllib.request.urlopen(i)
             for i in itertools.chain.from_iterable(
@@ -51,9 +52,18 @@ def update_android_packages(ctx,
         items_by_package_name.setdefault(android_pkg_name, [])
         items_by_package_name[android_pkg_name].append(item)
 
-    latest_packages = {package_name: list(sorted(items,
-        key=android_repo_lib.get_android_version, reverse=True))[0]
-        for package_name, items in items_by_package_name.items()}
+    latest_packages = {}
+    for package_name, items in items_by_package_name.items():
+        pkgs = []
+        for itm in items:
+            try:
+                if itm.codename != exclude_codename:
+                    pkgs.append(itm)
+            except AttributeError:
+                pkgs.append(itm)
+        pkgs = sorted(pkgs, key=android_repo_lib.get_android_version, reverse=True)
+        if pkgs:
+            latest_packages[package_name] = pkgs[0]
 
     for package_name, item in latest_packages.items():
         pkgbuild_src = os.path.join(android_pkgbuild_src_parent,
