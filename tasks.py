@@ -17,7 +17,7 @@ DEFAULT_PKGBUILD_SRC_PARENT_PATH = os.path.join(
 
 def out(ctx):
     def run(*args, **kwargs):
-        res = ctx.run(*args, **kwargs)
+        res = ctx.run(*args, hide='both', **kwargs)
         return res.stdout
     return run
 
