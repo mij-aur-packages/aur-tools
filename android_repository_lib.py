@@ -4,7 +4,6 @@ import hashlib
 import os
 import pkgbuild_lib
 import re
-import subprocess
 import sys
 import urllib, urllib.error, urllib.request
 import xml.etree.ElementTree as etree
@@ -259,7 +258,7 @@ def get_android_package_pkgver_vars(item):
     return version_variables
 
 
-def update_package(src_path, item):
+def update_package(run, src_path, item):
     # Skip package when the host os is not compatible with linux
     for archive in item.archives:
         try:
@@ -288,13 +287,13 @@ def update_package(src_path, item):
     has_update = False
     try:
         pkgbuild_apilevel = pkgbuild_lib.get_pkgbuild_value(pkgbuild_content, '_apilevel')
-        has_update = has_update or pkgbuild_lib.vercmp(pkgbuild_apilevel,
+        has_update = has_update or pkgbuild_lib.vercmp(run, pkgbuild_apilevel,
             android_pkgver_vars['_apilevel']) < 0
     except ValueError:
         pass
 
     pkgbuild_rev = pkgbuild_lib.get_pkgbuild_value(pkgbuild_content, '_rev')
-    has_update = has_update or pkgbuild_lib.vercmp(pkgbuild_rev,
+    has_update = has_update or pkgbuild_lib.vercmp(run, pkgbuild_rev,
             android_pkgver_vars['_rev']) < 0
 
     if not has_update:
@@ -342,5 +341,5 @@ def update_package(src_path, item):
     if source_properties_list:
         with open(source_properties_path, 'w') as f:
             f.write(source_properties)
-    pkgbuild_lib.commit_pkgbuild(
-            src_path, pkgname, android_pkgver, source_properties_list)
+    pkgbuild_lib.commit_pkgbuild(run, src_path,
+            pkgname, android_pkgver, source_properties_list)

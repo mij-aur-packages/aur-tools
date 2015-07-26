@@ -15,7 +15,14 @@ DEFAULT_PKGBUILD_SRC_PARENT_PATH = os.path.join(
         os.path.dirname(__file__), os.path.pardir, 'aur-packages')
 
 
-def get_latest_lubuntu_artwork_dsc():
+def out(ctx):
+    def run(*args, **kwargs):
+        res = ctx.run(*args, **kwargs)
+        return res.stdout
+    return run
+
+
+def get_latest_lubuntu_artwork_dsc(run):
     base_url = 'archive.ubuntu.com'
     directory = 'ubuntu/pool/universe/l/lubuntu-artwork'
     with ftplib.FTP(base_url) as ftp:
@@ -26,7 +33,9 @@ def get_latest_lubuntu_artwork_dsc():
             if i.endswith('.dsc'):
                 dsc_list.append(i)
 
-        dsc_list = list(sorted(dsc_list, key=functools.cmp_to_key(pkgbuild_lib.vercmp)))
+        dsc_list = list(sorted(dsc_list, key=functools.cmp_to_key(
+            lambda *args, **kwargs: pkgbuild_lib.vercmp(run, *args,
+                **kwargs))))
         dsc_name = dsc_list[-1]
     path_to_dsc = os.path.join(directory, dsc_name)
     url = urllib.parse.urljoin('http://{}'.format(base_url), path_to_dsc)
@@ -69,7 +78,7 @@ def update_android_packages(ctx,
         pkgbuild_src = os.path.join(android_pkgbuild_src_parent,
             android_repo_lib.to_aur_package_name(package_name))
         try:
-            android_repo_lib.update_package(pkgbuild_src, item)
+            android_repo_lib.update_package(out(ctx), pkgbuild_src, item)
         except FileNotFoundError:
             pass
 
@@ -81,7 +90,7 @@ def update_packages_that_have_dsc(ctx,
     for i in ['lubuntu-artwork', 'xapian-omega']:
         pkgbuild_dirs.append(os.path.join(src_parent, i))
 
-    urls = [get_latest_lubuntu_artwork_dsc(),
+    urls = [get_latest_lubuntu_artwork_dsc(out(ctx)),
             dsc_lib.get_dsc_url_from_debian_package_page('xapian-omega')]
 
     pkg_source_name_patterns = ['lubuntu-artwork_{}.',
@@ -89,7 +98,7 @@ def update_packages_that_have_dsc(ctx,
 
     for src_path, url, pkg_src_name_pattern in zip(
             pkgbuild_dirs, urls, pkg_source_name_patterns):
-        dsc_lib.update_package_with_dsc(src_path, url, pkg_src_name_pattern)
+        dsc_lib.update_package_with_dsc(out(ctx), src_path, url, pkg_src_name_pattern)
 
 
 @ctask
@@ -100,7 +109,7 @@ def update_pypi_packages(ctx,
         pkgbuild_dirs.append(os.path.join(src_parent, i))
 
     for src_path in pkgbuild_dirs:
-        pypi_lib.update_package_with_pypi(src_path)
+        pypi_lib.update_package_with_pypi(out(ctx), src_path)
 
 
 @ctask(pre=[update_android_packages,

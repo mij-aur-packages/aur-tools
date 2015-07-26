@@ -17,7 +17,7 @@ def get_checksums(release):
     return checksums
 
 
-def update_package_with_pypi(pkgbuild_dir):
+def update_package_with_pypi(run, pkgbuild_dir):
     pkgbuild_path = os.path.join(pkgbuild_dir, 'PKGBUILD')
     with open(pkgbuild_path, 'r') as pkgbuild:
         pkgbuild_content = pkgbuild.read()
@@ -29,7 +29,7 @@ def update_package_with_pypi(pkgbuild_dir):
 
     new_pkgver = pypi_pkg['info']['version']
     pkgver = pkgbuild_lib.get_pkgbuild_value(pkgbuild_content, 'pkgver')
-    vercmp_res = pkgbuild_lib.vercmp(pkgver, new_pkgver)
+    vercmp_res = pkgbuild_lib.vercmp(run, pkgver, new_pkgver)
     pkgname = pkgbuild_lib.get_pkgbuild_value(pkgbuild_content, 'pkgname')
     if vercmp_res >= 0:
         print('{} already updated'.format(pkgname))
@@ -56,5 +56,5 @@ def update_package_with_pypi(pkgbuild_dir):
 
     with open(pkgbuild_path, 'w') as pkgbuild:
         pkgbuild.write(pkgbuild_content)
-    pkgbuild_lib.commit_pkgbuild(
-            pkgbuild_dir, pkgname, new_pkgver, [])
+    pkgbuild_lib.commit_pkgbuild(run, pkgbuild_dir,
+            pkgname, new_pkgver, [])

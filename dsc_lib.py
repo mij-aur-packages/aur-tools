@@ -29,7 +29,7 @@ def get_dsc_url_from_debian_package_page(package_name):
         url_dsc = res.group()
     return url_dsc
 
-def update_package_with_dsc(pkgbuild_dir, dsc_url, package_source_name_pattern):
+def update_package_with_dsc(run, pkgbuild_dir, dsc_url, package_source_name_pattern):
     with urlopen(dsc_url) as dsc:
         dsc_content = dsc.read().decode('utf-8')
     version = re.search(r'{}\s+([^\s]+)'.format('Version:'),
@@ -42,7 +42,7 @@ def update_package_with_dsc(pkgbuild_dir, dsc_url, package_source_name_pattern):
 
     pkgname = pkgbuild_lib.get_pkgbuild_value(pkgbuild_content, 'pkgname')
     pkgver = pkgbuild_lib.get_pkgbuild_value(pkgbuild_content, 'pkgver')
-    vercmp_res = pkgbuild_lib.vercmp(pkgver, new_pkgver)
+    vercmp_res = pkgbuild_lib.vercmp(run, pkgver, new_pkgver)
     if vercmp_res >= 0:
         print('{} already updated'.format(pkgname))
         return
@@ -65,5 +65,5 @@ def update_package_with_dsc(pkgbuild_dir, dsc_url, package_source_name_pattern):
 
     with open(pkgbuild_path, 'w') as pkgbuild:
         pkgbuild.write(pkgbuild_content)
-    pkgbuild_lib.commit_pkgbuild(
-            pkgbuild_dir, pkgname, new_pkgver, [])
+    pkgbuild_lib.commit_pkgbuild(run, pkgbuild_dir,
+            pkgname, new_pkgver, [])

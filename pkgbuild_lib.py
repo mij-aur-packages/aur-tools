@@ -4,8 +4,8 @@ import shlex
 import subprocess
 
 
-def vercmp(ver1, ver2):
-    vercmp_res = subprocess.check_output(['vercmp', ver1, ver2]).decode('utf-8')
+def vercmp(run, ver1, ver2):
+    vercmp_res = run('vercmp {} {}'.format(ver1, ver2))
     return int(vercmp_res)
 
 
@@ -51,15 +51,15 @@ def replace_pkgbuild_var_value(pkgbuild_content, var_name, var_value):
     return pkgbuild_content.replace(orig_var_and_var_value,
             patt.format(var_value))
 
-def commit_pkgbuild(src_path, pkgname, pkgver, other_files):
+def commit_pkgbuild(run, src_path, pkgname, pkgver, other_files):
     cwd = os.getcwd()
     os.chdir(src_path)
     try:
         git_command = 'git commit'.split()
         git_command.extend(other_files + ['PKGBUILD'])
         git_command.extend([
-            '-m','Update pkg ({pkgver})'.format(pkgname=pkgname, pkgver=pkgver)])
-        subprocess.check_call(git_command)
+            '-m',"'Update pkg ({pkgver})'".format(pkgname=pkgname, pkgver=pkgver)])
+        run(' '.join(git_command))
     except subprocess.CalledProcessError:
         pass
     finally:
