@@ -11,7 +11,7 @@ def get_version(dsc_content):
 
 def get_checksums(dsc_content, package_source_name):
     checksums = {}
-    field_name_pattern = r'{}-([^:])+:'.format(re.escape('Checksums-'))
+    field_name_pattern = r'{}([^:]+):'.format(re.escape('Checksums-'))
     for match in re.finditer(field_name_pattern , dsc_content):
         start_pos = match.span()[1]
         checksum_name = match.group(1)
@@ -52,15 +52,15 @@ def update_package_with_dsc(run, pkgbuild_dir, dsc_url, package_source_name_patt
     pkgbuild_content = pkgbuild_lib.replace_pkgbuild_var_value(
             pkgbuild_content, 'pkgrel', '1')
 
-    package_source_name = package_source_name_pattern.format(pkgver)
+    package_source_name = package_source_name_pattern.format(new_pkgver)
     checksums = get_checksums(dsc_content, package_source_name)
-    for cheksum_name, value in checksums.items():
+    for checksum_name, value in checksums.items():
         try:
             bash_array, array_pattern = pkgbuild_lib.extract_array_var_pattern(
-                pkgbuild_content, checksum_name)
+                pkgbuild_content, '{}sums'.format(checksum_name.lower()))
             pkgbuild_content = pkgbuild_content.replace(bash_array,
                     array_pattern.format(value))
-        except ValueError:
+        except (ValueError, StopIteration):
             pass
 
     with open(pkgbuild_path, 'w') as pkgbuild:
