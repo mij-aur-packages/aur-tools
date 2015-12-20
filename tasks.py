@@ -118,8 +118,36 @@ def update_pypi_packages(ctx,
 def update_packages(ctx):
     print("Finish updating packages")
 
+
+@ctask
+def push_to_remote(ctx,
+        src_parent=DEFAULT_PKGBUILD_SRC_PARENT_PATH):
+    rn = out(ctx)
+    for i in os.listdir(src_parent):
+        git_dir = os.path.join(src_parent, i)
+        if not os.path.isdir(git_dir):
+            continue
+
+        # Skip directory that is not git repository
+        res = ctx.run("git -C '{}' rev-parse".format(git_dir), hide='both')
+        if res.exited != 0:
+            continue
+
+        # Count the number of commits that are not pushed yet in the
+        # remote branch
+        rev_count = rn(' '.join(["git -C '{}'".format(git_dir),
+            "rev-list --count all_remotes/master..HEAD"]))
+        rev_count = int(rev_count)
+
+        if rev_count > 0:
+            print('{} is {} commit(s) ahead of all_remotes'.format(i, rev_count))
+            ctx.run("git -C '{}' push all_remotes".format(git_dir))
+            ctx.run("git -C '{}' pull origin master".format(git_dir))
+
+
 ns = Collection()
 ns.add_task(update_android_packages)
 ns.add_task(update_packages_that_have_dsc)
 ns.add_task(update_pypi_packages)
+ns.add_task(push_to_remote)
 ns.add_task(update_packages, default=True)
