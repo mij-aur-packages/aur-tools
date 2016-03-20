@@ -220,6 +220,7 @@ def get_android_items_2(android_file_obj, android_xmldict, nodes, items):
                 raise Exception('archives must contain only archive node')
 
             for archive in itm.archives:
+                archive.checksum = {}
                 archive.checksum['sha1'] = archive.complete.checksum
                 del archive.complete.checksum
 
