@@ -42,8 +42,8 @@ def get_addon_url_paths(num_max=3):
 
     urls = {}
     for node in root:
-        url_node = node.find(namespace_format(namespace, 'url'))
-        name_node = node.find(namespace_format(namespace, 'name'))
+        url_node = node.find('url')
+        name_node = node.find('displayName')
         url = urllib.parse.urljoin(
                 'http://dl-ssl.google.com/android/repository/', url_node.text)
         urls.setdefault(name_node.text, []).append(url)
@@ -154,39 +154,86 @@ def get_android_items(url_file_objs):
         android_xmldict = xmltodict.parse(android_file_obj.read())
         nodes = next(iter(android_xmldict.values()))
 
-        license_node = create_or_return_list(nodes.pop('sdk:license'))
-        licenses = {node['@id']: node['#text'] for node in license_node}
+        if ('repo:sdk-addon' in android_xmldict
+                or 'sys-img:sdk-sys-img' in android_xmldict):
+            get_android_items_2(android_file_obj, android_xmldict, nodes, items)
+        else:
+            get_android_items_o(android_file_obj, android_xmldict, nodes, items)
 
-        for key, value in nodes.items():
-            if not key.startswith('sdk:'):
-                continue
-            name = key.replace('sdk:', '', 1).replace('-', '_')
-            node_list = create_or_return_list(value)
-
-            for subnode in node_list:
-                itm = normalize_xmldict(subnode)
-                itm.package_type = name
-                itm.package_repo_url = android_file_obj.url
-
-                if len(list(itm.archives.keys())) == 1:
-                    itm.archives = create_or_return_list(itm.archives.archive)
-                else:
-                    raise Exception('archives must contain only archive node')
-
-                for archive in itm.archives:
-                    hash_type = archive.checksum['@type']
-                    archive.checksum[hash_type] = archive.checksum['#text']
-                    del archive.checksum['@type']
-                    del archive.checksum['#text']
-
-                license_name = itm.uses_license['@ref']
-                itm.license = AttrDict()
-                itm.license.name = license_name
-                itm.license.content = licenses[license_name]
-                del itm.uses_license
-
-                items.append(itm)
     return items
+
+def get_android_items_o(android_file_obj, android_xmldict, nodes, items):
+    license_node = create_or_return_list(nodes.pop('sdk:license'))
+    licenses = {node['@id']: node['#text'] for node in license_node}
+
+    for key, value in nodes.items():
+        if not key.startswith('sdk:'):
+            continue
+        name = key.replace('sdk:', '', 1).replace('-', '_')
+        node_list = create_or_return_list(value)
+
+        for subnode in node_list:
+            itm = normalize_xmldict(subnode)
+            itm.package_type = name
+            itm.package_repo_url = android_file_obj.url
+
+            if len(list(itm.archives.keys())) == 1:
+                itm.archives = create_or_return_list(itm.archives.archive)
+            else:
+                raise Exception('archives must contain only archive node')
+
+            for archive in itm.archives:
+                hash_type = archive.checksum['@type']
+                archive.checksum[hash_type] = archive.checksum['#text']
+                del archive.checksum['@type']
+                del archive.checksum['#text']
+
+            license_name = itm.uses_license['@ref']
+            itm.license = AttrDict()
+            itm.license.name = license_name
+            itm.license.content = licenses[license_name]
+            del itm.uses_license
+
+            items.append(itm)
+
+def get_android_items_2(android_file_obj, android_xmldict, nodes, items):
+    license_node = create_or_return_list(nodes.pop('license'))
+    licenses = {node['@id']: node['#text'] for node in license_node}
+    if 'sys-img:sdk-sys-img' in android_xmldict:
+        package_type = 'sys-img'
+    elif 'repo:sdk-addon':
+        package_type = 'addon'
+
+    for key, value in nodes.items():
+        if key != 'remotePackage':
+            continue
+        node_list = create_or_return_list(value)
+
+        for subnode in node_list:
+            itm = normalize_xmldict(subnode)
+            itm.package_type = package_type
+            itm.package_repo_url = android_file_obj.url
+
+            if len(list(itm.archives.keys())) == 1:
+                itm.archives = create_or_return_list(itm.archives.archive)
+            else:
+                raise Exception('archives must contain only archive node')
+
+            for archive in itm.archives:
+                archive.checksum['sha1'] = archive.complete.checksum
+                del archive.complete.checksum
+
+            # TODO: do not merge type details on the parent node
+            itm.update(itm.type_details)
+            del itm.type_details
+
+            license_name = itm.uses_license['@ref']
+            itm.license = AttrDict()
+            itm.license.name = license_name
+            itm.license.content = licenses[license_name]
+            del itm.uses_license
+
+            items.append(itm)
 
 source_property_mapping = (
         ('abi'                    , 'SystemImage.Abi'),
